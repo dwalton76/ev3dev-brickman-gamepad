@@ -1,0 +1,12 @@
+[Unit]
+Description=Brickman Gamepad Service
+After=multi-user.target
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/brickman-gamepad.py
+StandardInput=tty-force
+
+[Install]
+WantedBy=multi-user.target
