@@ -263,7 +263,7 @@ class NESController(DpadController):
 
 class SNESController(DpadController):
     """
-    I own two SNES controllers but none of their codes overlap so for now will use
+    I own two SNES controllers but none of their codes overlap so will use
     the same class for both of them for now.
     """
 
