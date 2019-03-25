@@ -133,51 +133,48 @@ keystroke_ids = {
 }
 
 
-class NESController(object):
+class DpadController(object):
+    """
+    Base class for NES and SNES USB controllers
+    """
 
-    def __init__(self, dev_input_event_id=0):
-        """
-        The default behavior is to use the device at /dev/input/event0
-        """
-        keyboard = Keyboard()
+    BUTTON_NAME_TO_KEYSTROKE_NAME = {
+        "start" : "ENTER",
+        "select" : None,
+        "Y" : "BACK",
+        "X" : "ENTER",
+        "B" : "BACK",
+        "A" : "ENTER",
+        "UP" : "UP",
+        "DOWN" : "DOWN",
+        "LEFT" : "LEFT",
+        "RIGHT" : "RIGHT",
+    }
+
+    def __init__(self):
 
         # creates object 'device' to store the data
-        device = InputDevice('/dev/input/event%d' % dev_input_event_id)
+        self.device = InputDevice('/dev/input/event0')
 
         # prints device info at start
-        log.info(device)
-        log.info("\n" + pformat(device.capabilities(verbose=True)))
+        log.info(self.device)
+        log.info("\n" + pformat(self.device.capabilities(verbose=True)))
 
-        nes_code_to_button_name = {
-            313: 'start',
-            312: 'select',
-            305: 'B',
-            304: 'A',
-        }
-
-        nes_button_name_to_keystroke_name = {
-            "start" : "ENTER",
-            "select" : None,
-            "B" : "BACK",
-            "A" : "ENTER",
-            "UP" : "UP",
-            "DOWN" : "DOWN",
-            "LEFT" : "LEFT",
-            "RIGHT" : "RIGHT",
-        }
+    def main(self):
+        keyboard = Keyboard()
         dpad_up_down = None
         dpad_left_right = None
 
         # evdev takes care of polling the controller in a loop
-        for event in device.read_loop():
+        for event in self.device.read_loop():
             keystroke = None
             #log.debug("type %s, value %s, code %s" % (event.type, event.value, event.code))
 
             if event.type == ecodes.EV_KEY:
-                nes_button = nes_code_to_button_name.get(event.code)
+                nes_button = self.gamepad_code_to_button_name.get(event.code)
                 assert nes_button, "Invalid BUTTON: type %s, value %s, code %s" % (event.type, event.value, event.code)
                 pressed = bool(event.value)
-                keystroke = nes_button_name_to_keystroke_name.get(nes_button)
+                keystroke = self.BUTTON_NAME_TO_KEYSTROKE_NAME.get(nes_button)
                 log.info("BUTTON %s %s -> %s" % (nes_button, "pressed" if pressed else "released", keystroke))
 
             elif event.type == ecodes.EV_ABS:
@@ -206,7 +203,7 @@ class NESController(object):
                     pressed = True
 
                 # release event for UP or DOWN
-                elif value == 127 and code == 1:
+                elif value in (127, 128) and code == 1:
 
                     if dpad_up_down == "UP":
                         dpad_up_down = "UP"
@@ -223,7 +220,7 @@ class NESController(object):
                         dpad_button = None
 
                 # release event for LEFT or RIGHT
-                elif value == 127 and code == 0:
+                elif value in (127, 128) and code == 0:
 
                     if dpad_left_right == "LEFT":
                         dpad_left_right = "LEFT"
@@ -243,7 +240,7 @@ class NESController(object):
                     raise Exception("Invalid D-PAD: type %s, value %s, code %s" % (event.type, event.value, event.code))
 
                 #log.debug("D-PAD: type %s, value %s, code %s, %s" % (event.type, event.value, event.code, button))
-                keystroke = nes_button_name_to_keystroke_name.get(dpad_button)
+                keystroke = self.BUTTON_NAME_TO_KEYSTROKE_NAME.get(dpad_button)
                 log.info("D-PAD %s %s -> %s" % (dpad_button, "pressed" if pressed else "released", keystroke))
 
             if keystroke:
@@ -253,9 +250,56 @@ class NESController(object):
                     keyboard.send_key(keystroke_id, pressed)
 
 
+class NESController(DpadController):
+
+    # device /dev/input/event0, name "2Axes 11Keys Game  Pad", phys "usb-3f980000.usb-1.2/input0"
+    gamepad_code_to_button_name = {
+        312: 'select',
+        313: 'start',
+        305: 'B',
+        304: 'A',
+    }
+
+
+class SNESController(DpadController):
+    """
+    I own two SNES controllers but none of their codes overlap so for now will use
+    the same class for both of them for now.
+    """
+
+    gamepad_code_to_button_name = {
+
+        # TOMEE USB Controller
+        # Item M05176 / 3625PO8
+        # device /dev/input/event0, name "2Axes 11Keys Game  Pad", phys "usb-3f980000.usb-1.2/input0"
+        312 : 'select',
+        313 : 'start',
+        306 : 'B',
+        305 : 'A',
+        307 : 'Y',
+        304 : 'X',
+        308 : 'left-trigger',
+        309 : 'right-trigger',
+
+        # iBUFFALO Classic USB Gamepad
+        # BSGP801
+        # S/N A50201
+        # device /dev/input/event0, name "USB,2-axis 8-button gamepad  ", phys "usb-3f980000.usb-1.2/input0"
+        294 : 'select',
+        295 : 'start',
+        289 : 'B',
+        288 : 'A',
+        291 : 'Y',
+        290 : 'X',
+        292 : 'left-trigger',
+        293 : 'right-trigger',
+    }
+
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO,
-                        filename="/var/log/brickman-gamepad.log",
+                        #filename="/var/log/brickman-gamepad.log",
                         format='%(asctime)s %(filename)20s %(levelname)8s: %(message)s')
     log = logging.getLogger(__name__)
 
@@ -264,3 +308,5 @@ if __name__ == "__main__":
     logging.addLevelName(logging.WARNING, "\033[91m %s\033[0m" % logging.getLevelName(logging.WARNING))
 
     gamepad = NESController()
+    #gamepad = SNESController()
+    gamepad.main()
