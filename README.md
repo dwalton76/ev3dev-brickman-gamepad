@@ -6,7 +6,7 @@ keystrokes to navigate the ev3dev brickman menu.
 
 ## Install
 
-```
+```bash
 $ git clone https://github.com/dwalton76/ev3dev-brickman-gamepad.git
 $ cd ev3dev-brickman-gamepad
 $ sudo cp brickman-gamepad.py /usr/local/bin/
